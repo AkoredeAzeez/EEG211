@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Matching</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .container { max-width: 1200px; padding: 20px; }
+        .card { margin-bottom: 20px; }
+        .card-img-top {
+            width: 100%;
+            height: 250px;  /* Slightly reduced height for better grid view */
+            object-fit: contain;
+            background-color: #f8f9fa;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .match-container {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .col-md-3 {  /* Changed from col-md-4 to col-md-3 for 4 images per row */
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center mb-4">Image Matching System</h2>
+        
+        <form id="uploadForm" class="mb-4">
+            <div class="input-group">
+                <input type="file" class="form-control" id="imageUpload" name="file" 
+                       accept="image/*" required>
+                <button type="submit" class="btn btn-primary">Find Matches</button>
+            </div>
+        </form>
+
+        <div id="loading">
+            <div class="spinner-border text-primary"></div>
+            <p>Processing image...</p>
+        </div>
+
+        <div id="text-matches" class="match-container" style="display: none">
+            <h4>Text-Based Matches:</h4>
+            <div class="row row-cols-1 row-cols-md-4 g-4" id="text-matches-container"></div>
+        </div>
+
+        <div id="feature-matches" class="match-container" style="display: none">
+            <h4>Feature-Based Matches:</h4>
+            <div class="row row-cols-1 row-cols-md-4 g-4" id="feature-matches-container"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const loading = document.getElementById('loading');
+            const textMatches = document.getElementById('text-matches');
+            const featureMatches = document.getElementById('feature-matches');
+            
+            // Reset display
+            loading.style.display = 'block';
+            textMatches.style.display = 'none';
+            featureMatches.style.display = 'none';
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Handle text matches
+                    if (data.matches.text && data.matches.text.length > 0) {
+                        textMatches.style.display = 'block';
+                        const container = document.getElementById('text-matches-container');
+                        container.innerHTML = data.matches.text.map((match, index) => `
+                            <div class="col-md-3">
+                                <div class="card h-100">
+                                    <img src="${match.url}" 
+                                         class="card-img-top" 
+                                         alt="Text Match ${index + 1}"
+                                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iY3VycmVudENvbG9yIiBjbGFzcz0iYmkgYmktaW1hZ2UiIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZD0iTTYuMDAyIDUuNWExLjUgMS41IDAgMSAxLTMgMCAxLjUgMS41IDAgMCAxIDMgMHoiLz48cGF0aCBkPSJNMi4wMDIgMWEyIDIgMCAwIDAtMiAydjEwYTIgMiAwIDAgMCAyIDJoMTJhMiAyIDAgMCAwIDItMlYzYTIgMiAwIDAgMC0yLTJoLTEyem0xMiAxZGgxMnYxMGwtMi4wODMtMi4wODNhLjUuNSAwIDAgMC0uNzY1LjAzNkw4LjI5IDExSDcuNzFhLjUuNSAwIDAgMS0uMzU0LS4xNDZMMi4yOSA2LjQ5YS41LjUgMCAwIDAtLjc2NS4wMzZMMS4wODMgOFYzYTEgMSAwIDAgMSAxLTFoMTJhMSAxIDAgMCAxIDEgMXoiLz48L3N2Zz4='">
+                                    <div class="card-body">
+                                        <p class="card-text text-center">
+                                            Confidence: ${match.score ? (match.score * 100).toFixed(1) : 0}%
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                    
+                    // Handle feature matches
+                    if (data.matches.feature && data.matches.feature.length > 0) {
+                        featureMatches.style.display = 'block';
+                        const container = document.getElementById('feature-matches-container');
+                        container.innerHTML = data.matches.feature.map((match, index) => `
+                            <div class="col-md-3">
+                                <div class="card h-100">
+                                    <img src="${match.url}" 
+                                         class="card-img-top" 
+                                         alt="Feature Match ${index + 1}"
+                                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iY3VycmVudENvbG9yIiBjbGFzcz0iYmkgYmktaW1hZ2UiIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZD0iTTYuMDAyIDUuNWExLjUgMS41IDAgMSAxLTMgMCAxLjUgMS41IDAgMCAxIDMgMHoiLz48cGF0aCBkPSJNMi4wMDIgMWEyIDIgMCAwIDAtMiAydjEwYTIgMiAwIDAgMCAyIDJoMTJhMiAyIDAgMCAwIDItMlYzYTIgMiAwIDAgMC0yLTJoLTEyem0xMiAxZGgxMnYxMGwtMi4wODMtMi4wODNhLjUuNSAwIDAgMC0uNzY1LjAzNkw4LjI5IDExSDcuNzFhLjUuNSAwIDAgMS0uMzU0LS4xNDZMMi4yOSA2LjQ5YS41LjUgMCAwIDAtLjc2NS4wMzZMMS4wODMgOFYzYTEgMSAwIDAgMSAxLTFoMTJhMSAxIDAgMCAxIDEgMXoiLz48L3N2Zz4='">
+                                    <div class="card-body">
+                                        <p class="card-text text-center">
+                                            Similarity: ${match.score ? (match.score * 100).toFixed(1) : 0}%
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                } else {
+                    alert(data.error || 'No matches found');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error processing image');
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
